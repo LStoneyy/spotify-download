@@ -22,6 +22,8 @@ This Python script downloads MP3 files of tracks listed in a CSV file, typically
 - customtkinter (`pip install customtkinter`)
 - packaging (`pip install packaging`)
 
+**Windows users can now use the included .exe and don't need to meet these requirements!**
+
 ## Installation
 
 Instead of downloading everything yourself, just login on [Exportify.net](https://exportify.net/) and download the csv of the playlists you want to download. 
@@ -42,7 +44,7 @@ pip install -r requirements.txt
 1. Place your Spotify-exported CSV file (e.g., `livefreeandsleepgreat.csv`) in the same folder.
 2. Run the script:
    ```bash
-   python spotify-to-mp3.py
+   python spotify-downloaderCLI.py
    ```
 3. Follow the prompts:
    - Provide the CSV filename, then press Enter
@@ -50,7 +52,7 @@ pip install -r requirements.txt
    - Choose MP3 quality (e.g., 320)
 
 ### Graphical User Interface (GUI)
-1. Run the GUI application:
+1. Run the GUI application using Python:
    ```bash
    python spotify-downloaderGUI.py
    ```
