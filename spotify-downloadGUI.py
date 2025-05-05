@@ -28,6 +28,10 @@ class SpotifyDownloaderGUI(ctk.CTk):
         self.geometry("600x400")
         self.configure(fg_color=CATPPUCCIN["base"])
 
+        icon_path = "icon.ico"
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+
         self.init_ui()
 
     def init_ui(self):
