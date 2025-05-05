@@ -91,7 +91,7 @@ bad guy,Billie Eilish
 ## Buy me a coffee
 
 If you appreciate my work! I do not sell or try to sell anything, this is just to show your appreciation (I do appreciate it immensely!)
-[Paypal.me](www.paypal.me/dcmbrbeats)
+[Paypal.me](https://www.paypal.me/dcmbrbeats)
 
 ## License
 
