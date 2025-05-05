@@ -1,4 +1,4 @@
-# ![Spotify Downloader Icon](./icon.ico) Spotify Playlist Downloader (CSV)
+# Spotify Playlist Downloader (CSV)
 ![Screenshot](./Screenshot.png)
 
 This Python script downloads MP3 files of tracks listed in a CSV file, typically exported from a Spotify playlist using [Exportify.net](https://exportify.net/).
@@ -96,4 +96,6 @@ If you appreciate my work! I do not sell or try to sell anything, this is just t
 ## License
 
 This project is for personal use and educational purposes only. Do not use it to infringe on copyright laws.
+
+![Spotify Downloader Icon](./icon.ico)
 
