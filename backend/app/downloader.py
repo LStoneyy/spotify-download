@@ -125,12 +125,18 @@ def search_youtube(query: str) -> Optional[str]:
         with yt_dlp.YoutubeDL(_ydl_search_opts()) as ydl:
             info = ydl.extract_info(f"ytsearch1:{query}", download=False)
         if not info or not info.get("entries"):
+            print(f"[search] No entries returned for query: {query}", flush=True)
             return None
         entry = info["entries"][0]
         if not entry:
             return None
-        return f"https://www.youtube.com/watch?v={entry['id']}"
-    except Exception:
+        # Flat entries already contain the full watch URL — use it directly.
+        url = entry.get("url") or (
+            f"https://www.youtube.com/watch?v={entry['id']}" if entry.get("id") else None
+        )
+        return url
+    except Exception as exc:
+        print(f"[search] Exception for query '{query}': {exc}", flush=True)
         return None
 
 

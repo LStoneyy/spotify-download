@@ -24,7 +24,8 @@ services:
       - ${MUSIC_DIR}:/music
       - app_data:/data  # persists the database between restarts — do not remove
       # COOKIES_PATH in .env controls this — defaults to the empty placeholder if not set
-      - ${COOKIES_PATH:-./cookies.placeholder}:/data/cookies.txt:ro
+      # Note: must be read-write (no :ro) so yt-dlp can update the cookie jar after requests
+      - ${COOKIES_PATH:-./cookies.placeholder}:/data/cookies.txt
     expose:
       - "8000"
 

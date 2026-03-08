@@ -37,7 +37,6 @@ def get_status(session: Session = Depends(get_session)):
 
 @router.post("/sync")
 def trigger_sync():
-    """Immediately trigger a playlist poll (non-blocking, runs in scheduler thread)."""
-    from ..scheduler import scheduler
-    scheduler.add_job(poll_playlist, id="poll_immediate", replace_existing=True)
-    return {"triggered": True}
+    """Run a playlist poll synchronously and return the result."""
+    result = poll_playlist()
+    return result

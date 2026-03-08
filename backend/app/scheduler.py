@@ -36,7 +36,8 @@ def get_current_state() -> dict:
 # Poll job — runs on an interval, syncs playlist → DB
 # ---------------------------------------------------------------------------
 
-def poll_playlist() -> None:
+def poll_playlist() -> dict:
+    """Sync playlist → DB. Returns a result dict describing what happened."""
     global _last_poll, _next_poll
 
     client_id = os.environ.get("SPOTIFY_CLIENT_ID", "")
@@ -57,16 +58,19 @@ def poll_playlist() -> None:
         pass
 
     if not playlist_url:
-        return
+        return {"ok": False, "error": "No playlist URL configured. Set it in Settings first."}
     if not client_id or not client_secret:
-        return
+        return {"ok": False, "error": "Spotify credentials missing. Check SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET in your .env."}
 
     try:
         token = get_token(client_id, client_secret)
         remote_tracks = get_playlist_tracks(playlist_url, token)
     except Exception as exc:
-        print(f"[scheduler] Spotify poll failed: {exc}")
-        return
+        msg = f"Spotify API error: {exc}"
+        print(f"[scheduler] {msg}")
+        return {"ok": False, "error": msg}
+
+    total_found = len(remote_tracks)
 
     with Session(engine) as session:
         # Collect existing spotify_ids to avoid duplicates
@@ -95,11 +99,12 @@ def poll_playlist() -> None:
             added += 1
 
         session.commit()
-        if added:
-            print(f"[scheduler] Added {added} new track(s) from playlist.")
+        print(f"[scheduler] Playlist sync: {total_found} tracks found, {added} new queued.")
 
     # Reschedule if interval changed
     _reschedule_poll(poll_minutes)
+
+    return {"ok": True, "total_found": total_found, "added": added}
 
 
 # ---------------------------------------------------------------------------

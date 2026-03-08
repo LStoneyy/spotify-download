@@ -58,7 +58,12 @@ export interface Settings {
   max_retries: number;
 }
 
-// ── API functions ─────────────────────────────────────────────────────────────
+export interface SyncResult {
+  ok?: boolean;
+  error?: string;
+  total_found?: number;
+  added?: number;
+}
 
 export const getDownloads = (params?: {
   page?: number;
@@ -77,7 +82,7 @@ export const getDownloads = (params?: {
 export const getStatus = () => apiFetch<StatusResponse>("/status");
 
 export const triggerSync = () =>
-  apiFetch<{ triggered: boolean }>("/sync", { method: "POST" });
+  apiFetch<SyncResult>("/sync", { method: "POST" });
 
 export const createRequest = (query: string) =>
   apiFetch<Track>("/requests", {

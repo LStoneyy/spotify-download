@@ -5,6 +5,7 @@ import {
   triggerSync,
   type DownloadsResponse,
   type StatusResponse,
+  type SyncResult,
   type Track,
 } from "../api";
 import StatusBar from "../components/StatusBar";
@@ -38,7 +39,8 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 function fmtRelative(iso: string | null): string {
   if (!iso) return "–";
-  const diff = Math.floor((Date.now() - new Date(iso + (iso.endsWith("Z") ? "" : "Z")).getTime()) / 1000);
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (isNaN(diff)) return "–";
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   return `${Math.floor(diff / 3600)}h ago`;
@@ -46,7 +48,9 @@ function fmtRelative(iso: string | null): string {
 
 function fmtAbs(iso: string | null): string {
   if (!iso) return "–";
-  return new Date(iso + (iso.endsWith("Z") ? "" : "Z")).toLocaleTimeString([], {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "–";
+  return d.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -56,18 +60,19 @@ export default function Dashboard() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [data, setData] = useState<DownloadsResponse | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterSource, setFilterSource] = useState<string>("");
   const [page, setPage] = useState(1);
   const [syncing, setSyncing] = useState(false);
-  const [syncMsg, setSyncMsg] = useState("");
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
 
   const fetchAll = useCallback(async () => {
     const [s, d] = await Promise.all([
       getStatus().catch(() => null),
-      getDownloads({ page, limit: 50, status: filterStatus || undefined }).catch(() => null),
+      getDownloads({ page, limit: 50, status: filterStatus || undefined, source: filterSource || undefined }).catch(() => null),
     ]);
     if (s) setStatus(s);
     if (d) setData(d);
-  }, [page, filterStatus]);
+  }, [page, filterStatus, filterSource]);
 
   useEffect(() => {
     fetchAll();
@@ -77,26 +82,41 @@ export default function Dashboard() {
 
   const handleSync = async () => {
     setSyncing(true);
-    setSyncMsg("");
+    setSyncResult(null);
     try {
-      await triggerSync();
-      setSyncMsg("Sync triggered!");
-    } catch {
-      setSyncMsg("Failed to sync.");
+      const result = await triggerSync();
+      setSyncResult(result);
+      // If new tracks were added, switch view to show them
+      if (result.ok && result.added && result.added > 0) {
+        setFilterSource("playlist");
+        setFilterStatus("queued");
+        setPage(1);
+      }
+      fetchAll();
+    } catch (e: unknown) {
+      setSyncResult({ ok: false, error: e instanceof Error ? e.message : "Sync failed" });
     } finally {
       setSyncing(false);
-      setTimeout(() => setSyncMsg(""), 3000);
     }
   };
+
+  const syncBannerColor = syncResult?.ok === false
+    ? "bg-ctp-red/10 border-ctp-red/30 text-ctp-red"
+    : "bg-ctp-green/10 border-ctp-green/30 text-ctp-green";
+
+  const syncBannerMsg = syncResult
+    ? syncResult.ok === false
+      ? `Sync failed: ${syncResult.error}`
+      : syncResult.added && syncResult.added > 0
+        ? `Sync complete — ${syncResult.added} new track${syncResult.added !== 1 ? "s" : ""} queued from ${syncResult.total_found} in playlist`
+        : `Already up to date — all ${syncResult.total_found} playlist tracks are in the library`
+    : null;
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-xl font-bold text-ctp-text">Dashboard</h2>
         <div className="flex items-center gap-2">
-          {syncMsg && (
-            <span className="text-xs text-ctp-green">{syncMsg}</span>
-          )}
           <button
             onClick={handleSync}
             disabled={syncing}
@@ -106,6 +126,14 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Sync result banner */}
+      {syncBannerMsg && (
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm ${syncBannerColor}`}>
+          <span>{syncBannerMsg}</span>
+          <button onClick={() => setSyncResult(null)} className="text-inherit opacity-60 hover:opacity-100 text-xs">✕</button>
+        </div>
+      )}
 
       {/* Currently downloading */}
       <StatusBar status={status} />
@@ -129,20 +157,40 @@ export default function Dashboard() {
       )}
 
       {/* Filter bar */}
-      <div className="flex gap-2 flex-wrap">
-        {["", "done", "queued", "downloading", "failed", "skipped"].map((s) => (
-          <button
-            key={s}
-            onClick={() => { setFilterStatus(s); setPage(1); }}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-              filterStatus === s
-                ? "bg-ctp-blue/20 text-ctp-blue border-ctp-blue/40"
-                : "border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-overlay0"
-            }`}
-          >
-            {s === "" ? "All" : s}
-          </button>
-        ))}
+      <div className="space-y-2">
+        <div className="flex gap-2 flex-wrap">
+          {["All", "playlist", "manual"].map((s) => {
+            const val = s === "All" ? "" : s;
+            return (
+              <button
+                key={s}
+                onClick={() => { setFilterSource(val); setPage(1); }}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  filterSource === val
+                    ? "bg-ctp-mauve/20 text-ctp-mauve border-ctp-mauve/40"
+                    : "border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-overlay0"
+                }`}
+              >
+                {s}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {["", "done", "queued", "downloading", "failed", "skipped"].map((s) => (
+            <button
+              key={s}
+              onClick={() => { setFilterStatus(s); setPage(1); }}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                filterStatus === s
+                  ? "bg-ctp-blue/20 text-ctp-blue border-ctp-blue/40"
+                  : "border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-overlay0"
+              }`}
+            >
+              {s === "" ? "All statuses" : s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Desktop table ──────────────────────────────────────────────── */}
