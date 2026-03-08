@@ -218,7 +218,8 @@ def download_track(
     # Find the YouTube URL
     youtube_url = _search_with_fallbacks(title or "", artist or "")
     if not youtube_url:
-        return False, None, f"No YouTube result found for: {title}"
+        search_label = f"{artist} - {title}" if artist else title
+        return False, None, f"No YouTube result found for: {search_label}"
 
     # Build a temp path using os.splitext to avoid the .mp3-in-path bug
     base_temp = os.path.join(output_dir, f"_tmp_{file_name}")

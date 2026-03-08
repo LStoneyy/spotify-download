@@ -144,6 +144,9 @@ def download_worker() -> None:
             "artist": track_artist,
         }
 
+        label = f"{track_artist} - {track_title}" if track_artist else track_title
+        print(f"[downloader] Searching: {label}", flush=True)
+
         success, file_path, error = download_track(
             title=track_title,
             artist=track_artist,
@@ -153,6 +156,7 @@ def download_worker() -> None:
             template=template,
             sleep_sec=sleep_sec,
             max_retries=max_retries,
+            log_fn=lambda msg: print(f"[downloader] {msg}", flush=True),
         )
 
         with Session(engine) as session:
@@ -169,6 +173,7 @@ def download_worker() -> None:
                 else:
                     t.status = "failed"
                     t.error_msg = error
+                    print(f"[downloader] FAILED: {error}", flush=True)
                 session.add(t)
                 session.commit()
 
