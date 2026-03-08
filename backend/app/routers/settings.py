@@ -18,6 +18,8 @@ class SettingsUpdate(BaseModel):
     file_template: Optional[str] = None
     sleep_between_downloads: Optional[int] = None
     max_retries: Optional[int] = None
+    # sp_dc: send new value to set, empty string "" to clear, omit to keep unchanged
+    sp_dc: Optional[str] = None
 
 
 @router.get("/settings")
@@ -42,6 +44,9 @@ def update_settings(body: SettingsUpdate, session: Session = Depends(get_session
         settings.sleep_between_downloads = body.sleep_between_downloads
     if body.max_retries is not None:
         settings.max_retries = body.max_retries
+    if body.sp_dc is not None:
+        # Empty string clears the value; any non-empty string sets it
+        settings.sp_dc = body.sp_dc.strip() or None
 
     session.add(settings)
     session.commit()

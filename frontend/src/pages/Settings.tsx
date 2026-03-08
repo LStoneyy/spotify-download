@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getSettings, updateSettings, getSpotifyStatus, disconnectSpotify, type Settings, type SpotifyStatus } from "../api";
+import { getSettings, updateSettings, getSpotifyStatus, disconnectSpotify, importCsv, saveSpDc, type Settings, type SpotifyStatus, type ImportResult } from "../api";
 
 const QUALITIES = ["128", "192", "256", "320"];
 
@@ -21,6 +21,14 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvResult, setCsvResult] = useState<ImportResult | null>(null);
+  const [csvError, setCsvError] = useState("");
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [spdcInput, setSpdcInput] = useState("");
+  const [spdcSaving, setSpdcSaving] = useState(false);
+  const [spdcSaved, setSpdcSaved] = useState(false);
+  const [spdcError, setSpdcError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
 
   const spotifyConnected = searchParams.get("spotify_connected") === "1";
@@ -49,6 +57,55 @@ export default function SettingsPage() {
       setSpotifyStatus({ connected: false, expires_at: null });
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvImporting(true);
+    setCsvResult(null);
+    setCsvError("");
+    try {
+      const result = await importCsv(file);
+      setCsvResult(result);
+    } catch (err: unknown) {
+      setCsvError(err instanceof Error ? err.message : "Import failed.");
+    } finally {
+      setCsvImporting(false);
+      // Reset input so the same file can be re-imported if needed
+      if (csvInputRef.current) csvInputRef.current.value = "";
+    }
+  };
+
+  const handleSaveSpDc = async () => {
+    setSpdcSaving(true);
+    setSpdcError("");
+    setSpdcSaved(false);
+    try {
+      await saveSpDc(spdcInput);
+      setForm((prev) => ({ ...prev, sp_dc: spdcInput.trim() || null }));
+      setSpdcSaved(true);
+      setSpdcInput("");
+      setTimeout(() => setSpdcSaved(false), 3000);
+    } catch (err: unknown) {
+      setSpdcError(err instanceof Error ? err.message : "Save failed.");
+    } finally {
+      setSpdcSaving(false);
+    }
+  };
+
+  const handleClearSpDc = async () => {
+    setSpdcSaving(true);
+    setSpdcError("");
+    try {
+      await saveSpDc("");
+      setForm((prev) => ({ ...prev, sp_dc: null }));
+      setSpdcInput("");
+    } catch (err: unknown) {
+      setSpdcError(err instanceof Error ? err.message : "Clear failed.");
+    } finally {
+      setSpdcSaving(false);
     }
   };
 
@@ -170,6 +227,72 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* sp_dc web-player cookie */}
+      <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold text-ctp-sapphire uppercase tracking-wide">Spotify Session Cookie (sp_dc)</h3>
+          {form.sp_dc ? (
+            <span className="flex items-center gap-1.5 text-xs text-ctp-green font-medium shrink-0">
+              <span className="w-2 h-2 rounded-full bg-ctp-green inline-block"></span> Configured
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-xs text-ctp-overlay0 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-ctp-overlay0 inline-block"></span> Not set
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-ctp-subtext0">
+          Spotify's November 2024 API change blocks the playlist tracks endpoint for apps in
+          Development Mode — even with OAuth connected. The <code className="text-ctp-sapphire">sp_dc</code>{" "}
+          cookie is your browser's Spotify session and uses a <strong>different, unrestricted</strong> token flow.
+          Set it once and automatic playlist sync will work without any Spotify app approval.
+        </p>
+        <ol className="text-xs text-ctp-subtext0 space-y-1 list-decimal list-inside">
+          <li>Open <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">open.spotify.com</a> and log in.</li>
+          <li>Open DevTools (<kbd className="text-ctp-text font-mono">F12</kbd>) → Application → Storage → Cookies → <code className="text-ctp-sapphire">https://open.spotify.com</code></li>
+          <li>Find the <code className="text-ctp-sapphire">sp_dc</code> cookie and copy its value.</li>
+          <li>Paste it below and click Save.</li>
+        </ol>
+        {spdcSaved && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-ctp-green/10 border border-ctp-green/30 text-ctp-green text-sm">
+            <span>✓</span> sp_dc saved — syncing should now work!
+          </div>
+        )}
+        {spdcError && (
+          <div className="px-4 py-3 rounded-xl bg-ctp-red/10 border border-ctp-red/30 text-ctp-red text-sm">
+            {spdcError}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={spdcInput}
+            onChange={(e) => setSpdcInput(e.target.value)}
+            placeholder={form.sp_dc ? "Paste new value to replace…" : "Paste sp_dc value…"}
+            className="flex-1 bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-sapphire transition-colors font-mono"
+          />
+          <button
+            onClick={handleSaveSpDc}
+            disabled={spdcSaving || !spdcInput.trim()}
+            className="px-4 py-2 rounded-lg bg-ctp-sapphire text-ctp-base text-sm font-bold hover:bg-ctp-blue disabled:opacity-40 transition-colors shrink-0"
+          >
+            {spdcSaving ? "Saving…" : "Save"}
+          </button>
+          {form.sp_dc && (
+            <button
+              onClick={handleClearSpDc}
+              disabled={spdcSaving}
+              className="px-4 py-2 rounded-lg bg-ctp-surface1 text-ctp-subtext0 text-sm hover:text-ctp-red hover:bg-ctp-red/10 disabled:opacity-40 transition-colors shrink-0"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-ctp-overlay0">
+          The cookie stays in your local database. It typically lasts months without needing to be refreshed.
+        </p>
+      </section>
+
       {/* Downloads */}
       <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
         <h3 className="text-sm font-semibold text-ctp-peach uppercase tracking-wide">Downloads</h3>
@@ -270,6 +393,57 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* CSV Import */}
+      <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
+        <h3 className="text-sm font-semibold text-ctp-yellow uppercase tracking-wide">Import Playlist CSV</h3>
+        <p className="text-xs text-ctp-subtext0">
+          Export your Spotify playlist with{" "}
+          <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">Exportify</a>{" "}
+          and upload the CSV here to queue all tracks for download — useful if Spotify's API is
+          blocking direct sync due to{" "}
+          <a href="https://developer.spotify.com/documentation/web-api/concepts/quota-modes" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">Extended Quota Mode</a>{" "}
+          restrictions.
+        </p>
+        <p className="text-xs text-ctp-subtext0">
+          Also accepts any CSV with <code className="text-ctp-yellow">Track Name</code> /{" "}
+          <code className="text-ctp-yellow">Artist Name</code> columns, or a plain{" "}
+          <code className="text-ctp-yellow">Artist - Title</code> per line.
+        </p>
+
+        {csvResult && (
+          <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-ctp-green/10 border border-ctp-green/30 text-ctp-green text-sm">
+            <span>✓</span>
+            <span>
+              Imported <strong>{csvResult.imported}</strong> track{csvResult.imported !== 1 ? "s" : ""}
+              {csvResult.skipped > 0 && ` (${csvResult.skipped} already existed — skipped)`}.
+              Head to the{" "}
+              <a href="/" className="underline">Dashboard</a>{" "}
+              to see the queue.
+            </span>
+          </div>
+        )}
+        {csvError && (
+          <div className="px-4 py-3 rounded-xl bg-ctp-red/10 border border-ctp-red/30 text-ctp-red text-sm">
+            {csvError}
+          </div>
+        )}
+
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={handleCsvImport}
+        />
+        <button
+          onClick={() => csvInputRef.current?.click()}
+          disabled={csvImporting}
+          className="w-full py-2.5 rounded-lg bg-ctp-yellow/20 text-ctp-yellow border border-ctp-yellow/30 text-sm font-bold hover:bg-ctp-yellow/30 disabled:opacity-50 transition-colors"
+        >
+          {csvImporting ? "Importing…" : "Choose CSV file…"}
+        </button>
       </section>
 
       {/* Cookies hint */}

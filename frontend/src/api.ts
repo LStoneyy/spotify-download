@@ -56,6 +56,8 @@ export interface Settings {
   file_template: string;
   sleep_between_downloads: number;
   max_retries: number;
+  /** Web-player session cookie; present means sp_dc is configured. */
+  sp_dc: string | null;
 }
 
 export interface SpotifyStatus {
@@ -68,6 +70,13 @@ export interface SyncResult {
   error?: string;
   total_found?: number;
   added?: number;
+}
+
+export interface ImportResult {
+  ok: boolean;
+  total: number;
+  imported: number;
+  skipped: number;
 }
 
 export const getDownloads = (params?: {
@@ -101,8 +110,27 @@ export const disconnectSpotify = () =>
 
 export const getSettings = () => apiFetch<Settings>("/settings");
 
-export const updateSettings = (body: Partial<Omit<Settings, "id">>) =>
+export const updateSettings = (body: Partial<Omit<Settings, "id" | "sp_dc">>) =>
   apiFetch<Settings>("/settings", {
     method: "PUT",
     body: JSON.stringify(body),
   });
+
+/** Save or clear the sp_dc cookie (empty string clears it). */
+export const saveSpDc = (sp_dc: string) =>
+  apiFetch<Settings>("/settings", {
+    method: "PUT",
+    body: JSON.stringify({ sp_dc }),
+  });
+
+/** Upload a CSV file and queue its tracks for download. */
+export const importCsv = async (file: File): Promise<ImportResult> => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/import/csv`, { method: "POST", body: form });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status} ${text}`);
+  }
+  return res.json() as Promise<ImportResult>;
+};
