@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getSettings, updateSettings, type Settings } from "../api";
+import { useSearchParams } from "react-router-dom";
+import { getSettings, updateSettings, getSpotifyStatus, disconnectSpotify, type Settings, type SpotifyStatus } from "../api";
 
 const QUALITIES = ["128", "192", "256", "320"];
 
@@ -18,13 +19,38 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const spotifyConnected = searchParams.get("spotify_connected") === "1";
+  const spotifyError = searchParams.get("spotify_error");
+
+  // Clear query params from URL without re-rendering (cosmetic)
+  useEffect(() => {
+    if (spotifyConnected || spotifyError) {
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   useEffect(() => {
-    getSettings()
-      .then((s) => setForm(s))
+    Promise.all([
+      getSettings().then((s) => setForm(s)),
+      getSpotifyStatus().then((s) => setSpotifyStatus(s)),
+    ])
       .catch(() => setError("Failed to load settings."))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await disconnectSpotify();
+      setSpotifyStatus({ connected: false, expires_at: null });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -57,9 +83,60 @@ export default function SettingsPage() {
     <div className="max-w-xl mx-auto space-y-6">
       <h2 className="text-xl font-bold text-ctp-text">Settings</h2>
 
+      {/* OAuth result banners */}
+      {spotifyConnected && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-ctp-green/10 border border-ctp-green/30 text-ctp-green text-sm">
+          <span>✓</span> Spotify account connected successfully!
+        </div>
+      )}
+      {spotifyError && (
+        <div className="px-4 py-3 rounded-xl bg-ctp-red/10 border border-ctp-red/30 text-ctp-red text-sm">
+          Spotify auth error: {spotifyError}
+        </div>
+      )}
+
       {/* Spotify */}
       <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
         <h3 className="text-sm font-semibold text-ctp-blue uppercase tracking-wide">Spotify</h3>
+
+        {/* Account connection */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-ctp-subtext0">Account</label>
+          {spotifyStatus?.connected ? (
+            <div className="flex items-center justify-between gap-3 bg-ctp-green/10 border border-ctp-green/30 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-ctp-green inline-block"></span>
+                <span className="text-sm text-ctp-green font-medium">Connected</span>
+              </div>
+              <button
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="text-xs text-ctp-subtext0 hover:text-ctp-red transition-colors disabled:opacity-50"
+              >
+                {disconnecting ? "Disconnecting…" : "Disconnect"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 bg-ctp-red/10 border border-ctp-red/30 rounded-lg px-4 py-3">
+                <span className="w-2 h-2 rounded-full bg-ctp-red inline-block"></span>
+                <span className="text-sm text-ctp-red font-medium">Not connected</span>
+              </div>
+              <a
+                href="/api/spotify/auth"
+                className="block w-full py-2.5 rounded-lg bg-ctp-green text-ctp-base text-sm font-bold text-center hover:bg-ctp-teal transition-colors"
+              >
+                Connect Spotify Account
+              </a>
+              <p className="text-xs text-ctp-overlay0">
+                Required for playlist sync. Make sure{" "}
+                <code className="text-ctp-yellow">http://127.0.0.1:6767/api/spotify/callback</code>{" "}
+                is listed as a Redirect URI in your{" "}
+                <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">Spotify app</a>.
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="space-y-1">
           <label className="text-xs font-medium text-ctp-subtext0">Playlist URL</label>
@@ -70,7 +147,7 @@ export default function SettingsPage() {
             placeholder="https://open.spotify.com/playlist/…"
             className="w-full bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-blue transition-colors"
           />
-          <p className="text-xs text-ctp-overlay0">Must be a public Spotify playlist.</p>
+          <p className="text-xs text-ctp-overlay0">Paste your playlist URL here.</p>
         </div>
 
         <div className="space-y-1">

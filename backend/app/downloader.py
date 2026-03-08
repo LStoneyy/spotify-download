@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 import random
 from datetime import datetime
@@ -74,13 +75,12 @@ def _common_opts() -> dict:
     return opts
 
 
-def _ydl_search_opts() -> dict:
+def _ydl_search_opts(n: int = 5) -> dict:
     """Options for search — no player_client override, default extractor works fine."""
     return {
         **_common_opts(),
         "extract_flat": True,
         "default_search": "ytsearch",
-        "max_downloads": 1,
         "ignoreerrors": True,
     }
 
@@ -119,45 +119,119 @@ def _ydl_download_opts(output_base: str, quality: str, sleep_sec: int, max_retri
     }
 
 
-def search_youtube(query: str) -> Optional[str]:
-    """Return the best YouTube URL for *query*, or None on failure."""
+# ---------------------------------------------------------------------------
+# Token-based result scoring
+# ---------------------------------------------------------------------------
+
+def _tokenize(text: str) -> set[str]:
+    """Lowercase alphanumeric tokens from a string, filtering trivial stopwords."""
+    _STOPWORDS = {"a", "an", "the", "and", "or", "of", "in", "on", "at", "to",
+                  "for", "is", "my", "i", "by", "ft", "feat", "official", "video",
+                  "audio", "lyrics", "hd", "4k"}
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 1 and w not in _STOPWORDS}
+
+
+def _score_entry(entry: dict, required: set[str]) -> float:
+    """
+    Return what fraction of required tokens appear somewhere across
+    video title + channel/uploader name.  1.0 = perfect match.
+    """
+    if not required:
+        return 1.0
+    video_title = entry.get("title") or ""
+    channel = entry.get("channel") or entry.get("uploader") or ""
+    haystack = _tokenize(f"{video_title} {channel}")
+    matched = required & haystack
+    return len(matched) / len(required)
+
+
+def _entry_url(entry: dict) -> Optional[str]:
+    return entry.get("url") or (
+        f"https://www.youtube.com/watch?v={entry['id']}" if entry.get("id") else None
+    )
+
+
+def search_youtube(query: str, required_tokens: Optional[set[str]] = None) -> Optional[str]:
+    """
+    Search YouTube and return the best-matching URL.
+
+    Fetches up to 5 candidates and scores each by how many of the
+    *required_tokens* (artist + title words) appear in the combined
+    video title + channel name.  Falls back to the top result if nothing
+    reaches a perfect score.
+    """
+    n = 5
     try:
         with yt_dlp.YoutubeDL(_ydl_search_opts()) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{query}", download=False)
+            info = ydl.extract_info(f"ytsearch{n}:{query}", download=False)
         if not info or not info.get("entries"):
             print(f"[search] No entries returned for query: {query}", flush=True)
             return None
-        entry = info["entries"][0]
-        if not entry:
+
+        entries = [e for e in info["entries"] if e]
+        if not entries:
             return None
-        # Flat entries already contain the full watch URL — use it directly.
-        url = entry.get("url") or (
-            f"https://www.youtube.com/watch?v={entry['id']}" if entry.get("id") else None
-        )
-        return url
+
+        if not required_tokens:
+            # No scoring context — just return the top result
+            return _entry_url(entries[0])
+
+        # Score all candidates; pick the best
+        scored = [(e, _score_entry(e, required_tokens)) for e in entries]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        best_entry, best_score = scored[0]
+
+        # Log what we found for debugging
+        for e, s in scored[:3]:
+            ch = e.get("channel") or e.get("uploader") or "?"
+            print(f"[search]   score={s:.2f} channel={ch!r} title={e.get('title')!r}", flush=True)
+
+        # Accept if all required tokens matched; otherwise still use the top result
+        # (the fallback chain in _search_with_fallbacks will try simpler queries next)
+        if best_score == 1.0:
+            print(f"[search] Perfect match (score=1.0): {best_entry.get('title')!r}", flush=True)
+            return _entry_url(best_entry)
+        elif best_score >= 0.75:
+            print(f"[search] Partial match (score={best_score:.2f}): {best_entry.get('title')!r}", flush=True)
+            return _entry_url(best_entry)
+        else:
+            print(f"[search] Best score only {best_score:.2f} — no confident match for query: {query}", flush=True)
+            return None
+
     except Exception as exc:
         print(f"[search] Exception for query '{query}': {exc}", flush=True)
         return None
 
 
 def _search_with_fallbacks(title: str, artist: str) -> Optional[str]:
-    """Try three progressively simpler search queries."""
+    """
+    Try progressively simpler search queries, using token scoring to pick
+    the best result from each batch of candidates.
+    """
+    required = _tokenize(f"{artist} {title}")
+
     queries = []
     if artist:
-        queries.append(f"{artist} - {title} official audio")
+        queries.append(f"{artist} - {title}")
         queries.append(f"{artist} {title}")
-        first_word = title.split()[0] if title.split() else title
-        queries.append(f"{artist} {first_word}")
     else:
-        queries.append(f"{title} official audio")
         queries.append(title)
 
     for i, q in enumerate(queries):
-        url = search_youtube(q)
+        print(f"[search] Trying query: {q!r} (required tokens: {required})", flush=True)
+        url = search_youtube(q, required_tokens=required)
         if url:
             return url
         if i < len(queries) - 1:
             time.sleep(random.uniform(2.0, 4.0))
+
+    # Last resort: relaxed search with only title tokens, no score filter
+    if artist:
+        print(f"[search] Falling back to title-only search: {title!r}", flush=True)
+        url = search_youtube(title, required_tokens=_tokenize(title))
+        if url:
+            return url
+
     return None
 
 

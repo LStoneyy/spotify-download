@@ -58,6 +58,11 @@ export interface Settings {
   max_retries: number;
 }
 
+export interface SpotifyStatus {
+  connected: boolean;
+  expires_at: number | null;
+}
+
 export interface SyncResult {
   ok?: boolean;
   error?: string;
@@ -89,6 +94,10 @@ export const createRequest = (query: string) =>
     method: "POST",
     body: JSON.stringify({ query }),
   });
+
+export const getSpotifyStatus = () => apiFetch<SpotifyStatus>("/spotify/status");
+export const disconnectSpotify = () =>
+  apiFetch<{ disconnected: boolean }>("/spotify/disconnect", { method: "DELETE" });
 
 export const getSettings = () => apiFetch<Settings>("/settings");
 

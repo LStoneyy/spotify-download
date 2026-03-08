@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import create_db_and_tables
 from .routers import downloads, requests, settings, status
+from .routers import auth as auth_router
 from .scheduler import start_scheduler, stop_scheduler
 
 
@@ -31,3 +32,4 @@ app.include_router(downloads.router, prefix="/api")
 app.include_router(requests.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
+app.include_router(auth_router.router, prefix="/api")
