@@ -62,10 +62,11 @@ def _ydl_base_opts() -> dict:
         "no_warnings": True,
         "nocheckcertificate": True,
         "geo_bypass": True,
-        # Use the 'tv' client: no PO Token required as of 2025
+        # android_vr bypasses YouTube's bot-check without needing cookies or
+        # a PO Token. tv is kept as fallback. Both require no sign-in.
         "extractor_args": {
             "youtube": {
-                "player_client": ["tv"],
+                "player_client": ["android_vr", "tv"],
                 "skip": ["hls", "dash"],
             }
         },
@@ -74,8 +75,8 @@ def _ydl_base_opts() -> dict:
             "Accept-Language": "en-US,en;q=0.9",
         },
     }
-    # Pass cookies if the user has mounted one
-    if os.path.isfile(_COOKIES_PATH):
+    # Pass cookies only if the file exists AND has content (not the empty placeholder)
+    if os.path.isfile(_COOKIES_PATH) and os.path.getsize(_COOKIES_PATH) > 0:
         opts["cookiefile"] = _COOKIES_PATH
     return opts
 

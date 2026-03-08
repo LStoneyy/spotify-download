@@ -23,6 +23,8 @@ services:
       # ↓ MUSIC_DIR is set in your .env file — e.g. MUSIC_DIR=/Users/lukas/Music
       - ${MUSIC_DIR}:/music
       - app_data:/data  # persists the database between restarts — do not remove
+      # COOKIES_PATH in .env controls this — defaults to the empty placeholder if not set
+      - ${COOKIES_PATH:-./cookies.placeholder}:/data/cookies.txt:ro
     expose:
       - "8000"
 
