@@ -56,20 +56,13 @@ def sanitize_filename(template: str, title: str, artist: str, album: str) -> str
 # YouTube search
 # ---------------------------------------------------------------------------
 
-def _ydl_base_opts() -> dict:
+def _common_opts() -> dict:
+    """Options shared by both search and download."""
     opts = {
         "quiet": True,
         "no_warnings": True,
         "nocheckcertificate": True,
         "geo_bypass": True,
-        # android_vr bypasses YouTube's bot-check without needing cookies or
-        # a PO Token. tv is kept as fallback. Both require no sign-in.
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android_vr", "tv"],
-                "skip": ["hls", "dash"],
-            }
-        },
         "http_headers": {
             "User-Agent": _UA,
             "Accept-Language": "en-US,en;q=0.9",
@@ -81,17 +74,55 @@ def _ydl_base_opts() -> dict:
     return opts
 
 
-def search_youtube(query: str) -> Optional[str]:
-    """Return the best YouTube URL for *query*, or None on failure."""
-    opts = {
-        **_ydl_base_opts(),
+def _ydl_search_opts() -> dict:
+    """Options for search — no player_client override, default extractor works fine."""
+    return {
+        **_common_opts(),
         "extract_flat": True,
         "default_search": "ytsearch",
         "max_downloads": 1,
         "ignoreerrors": True,
     }
+
+
+def _ydl_download_opts(output_base: str, quality: str, sleep_sec: int, max_retries: int) -> dict:
+    """Options for actual audio download — uses android_vr to bypass bot checks."""
+    return {
+        **_common_opts(),
+        "format": "bestaudio/best",
+        "outtmpl": output_base,
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": quality,
+            }
+        ],
+        "noplaylist": True,
+        "noprogress": True,
+        # android_vr bypasses YouTube's bot-check without needing cookies or a PO Token.
+        # tv is kept as fallback. Separate from search opts — android_vr breaks flat search.
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android_vr", "tv"],
+                "skip": ["hls", "dash"],
+            }
+        },
+        "sleep_interval": sleep_sec,
+        "max_sleep_interval": sleep_sec + 5,
+        "sleep_interval_requests": 1,
+        "retries": max_retries,
+        "retry_sleep_functions": {
+            "http": lambda n: min(10 * (2 ** (n - 1)), 120),
+        },
+        "concurrent_fragment_downloads": 1,
+    }
+
+
+def search_youtube(query: str) -> Optional[str]:
+    """Return the best YouTube URL for *query*, or None on failure."""
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
+        with yt_dlp.YoutubeDL(_ydl_search_opts()) as ydl:
             info = ydl.extract_info(f"ytsearch1:{query}", download=False)
         if not info or not info.get("entries"):
             return None
@@ -127,7 +158,6 @@ def _search_with_fallbacks(title: str, artist: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # MP3 metadata
 # ---------------------------------------------------------------------------
-
 def _set_metadata(path: str, title: str, artist: Optional[str], album: Optional[str]) -> None:
     """Write ID3 tags using EasyID3 (single pass, no redundant double-write)."""
     try:
@@ -194,29 +224,7 @@ def download_track(
     base_temp = os.path.join(output_dir, f"_tmp_{file_name}")
     base_no_ext, _ = os.path.splitext(base_temp + ".mp3")  # strips nothing, but future-proof
 
-    ydl_opts = {
-        **_ydl_base_opts(),
-        "format": "bestaudio/best",
-        "outtmpl": base_no_ext,
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": quality,
-            }
-        ],
-        "noplaylist": True,
-        "noprogress": True,
-        # Built-in sleep & retry options (yt-dlp native, most reliable approach)
-        "sleep_interval": sleep_sec,
-        "max_sleep_interval": sleep_sec + 5,
-        "sleep_interval_requests": 1,
-        "retries": max_retries,
-        "retry_sleep_functions": {
-            "http": lambda n: min(10 * (2 ** (n - 1)), 120),  # exponential, cap 120s
-        },
-        "concurrent_fragment_downloads": 1,
-    }
+    ydl_opts = _ydl_download_opts(base_no_ext, quality, sleep_sec, max_retries)
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
