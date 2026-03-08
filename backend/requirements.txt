@@ -1,0 +1,8 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+sqlmodel==0.0.22
+apscheduler==3.10.4
+yt-dlp==2025.4.30
+mutagen==1.47.0
+requests==2.32.3
+python-multipart==0.0.20

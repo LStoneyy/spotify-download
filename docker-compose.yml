@@ -1,0 +1,38 @@
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  SETUP — before running `docker compose up --build`:                    │
+# │                                                                         │
+# │  1. Copy .env.example → .env                                            │
+# │  2. In .env, set:                                                       │
+# │       SPOTIFY_CLIENT_ID      — from developer.spotify.com/dashboard     │
+# │       SPOTIFY_CLIENT_SECRET  — from developer.spotify.com/dashboard     │
+# │       MUSIC_DIR              — absolute path to your music folder       │
+# │                                e.g. /Users/lukas/Music                  │
+# │                                                                         │
+# │  UI will be available at: http://localhost:6767                         │
+# └─────────────────────────────────────────────────────────────────────────┘
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /data/db.sqlite
+      OUTPUT_DIR: /music
+    volumes:
+      # ↓ MUSIC_DIR is set in your .env file — e.g. MUSIC_DIR=/Users/lukas/Music
+      - ${MUSIC_DIR}:/music
+      - app_data:/data  # persists the database between restarts — do not remove
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "6767:80"  # change the left side (6767) if that port is already in use
+    depends_on:
+      - backend
+
+volumes:
+  app_data:
