@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { getSettings, updateSettings, getSpotifyStatus, disconnectSpotify, importCsv, saveSpDc, type Settings, type SpotifyStatus, type ImportResult } from "../api";
+import { getSettings, updateSettings, importCsv, type Settings, type ImportResult } from "../api";
 
 const QUALITIES = ["128", "192", "256", "320"];
 
@@ -19,46 +18,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [spotifyStatus, setSpotifyStatus] = useState<SpotifyStatus | null>(null);
-  const [disconnecting, setDisconnecting] = useState(false);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResult, setCsvResult] = useState<ImportResult | null>(null);
   const [csvError, setCsvError] = useState("");
   const csvInputRef = useRef<HTMLInputElement>(null);
-  const [spdcInput, setSpdcInput] = useState("");
-  const [spdcSaving, setSpdcSaving] = useState(false);
-  const [spdcSaved, setSpdcSaved] = useState(false);
-  const [spdcError, setSpdcError] = useState("");
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const spotifyConnected = searchParams.get("spotify_connected") === "1";
-  const spotifyError = searchParams.get("spotify_error");
-
-  // Clear query params from URL without re-rendering (cosmetic)
-  useEffect(() => {
-    if (spotifyConnected || spotifyError) {
-      setSearchParams({}, { replace: true });
-    }
-  }, []);
 
   useEffect(() => {
-    Promise.all([
-      getSettings().then((s) => setForm(s)),
-      getSpotifyStatus().then((s) => setSpotifyStatus(s)),
-    ])
+    getSettings()
+      .then((s) => setForm(s))
       .catch(() => setError("Failed to load settings."))
       .finally(() => setLoading(false));
   }, []);
-
-  const handleDisconnect = async () => {
-    setDisconnecting(true);
-    try {
-      await disconnectSpotify();
-      setSpotifyStatus({ connected: false, expires_at: null });
-    } finally {
-      setDisconnecting(false);
-    }
-  };
 
   const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,37 +45,6 @@ export default function SettingsPage() {
       setCsvImporting(false);
       // Reset input so the same file can be re-imported if needed
       if (csvInputRef.current) csvInputRef.current.value = "";
-    }
-  };
-
-  const handleSaveSpDc = async () => {
-    setSpdcSaving(true);
-    setSpdcError("");
-    setSpdcSaved(false);
-    try {
-      await saveSpDc(spdcInput);
-      setForm((prev) => ({ ...prev, sp_dc: spdcInput.trim() || null }));
-      setSpdcSaved(true);
-      setSpdcInput("");
-      setTimeout(() => setSpdcSaved(false), 3000);
-    } catch (err: unknown) {
-      setSpdcError(err instanceof Error ? err.message : "Save failed.");
-    } finally {
-      setSpdcSaving(false);
-    }
-  };
-
-  const handleClearSpDc = async () => {
-    setSpdcSaving(true);
-    setSpdcError("");
-    try {
-      await saveSpDc("");
-      setForm((prev) => ({ ...prev, sp_dc: null }));
-      setSpdcInput("");
-    } catch (err: unknown) {
-      setSpdcError(err instanceof Error ? err.message : "Clear failed.");
-    } finally {
-      setSpdcSaving(false);
     }
   };
 
@@ -133,165 +72,11 @@ export default function SettingsPage() {
     );
   }
 
-  const pollMinutes = form.poll_interval_minutes ?? 60;
   const sleepSec = form.sleep_between_downloads ?? 7;
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <h2 className="text-xl font-bold text-ctp-text">Settings</h2>
-
-      {/* OAuth result banners */}
-      {spotifyConnected && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-ctp-green/10 border border-ctp-green/30 text-ctp-green text-sm">
-          <span>✓</span> Spotify account connected successfully!
-        </div>
-      )}
-      {spotifyError && (
-        <div className="px-4 py-3 rounded-xl bg-ctp-red/10 border border-ctp-red/30 text-ctp-red text-sm">
-          Spotify auth error: {spotifyError}
-        </div>
-      )}
-
-      {/* Spotify */}
-      <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
-        <h3 className="text-sm font-semibold text-ctp-blue uppercase tracking-wide">Spotify</h3>
-
-        {/* Account connection */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-ctp-subtext0">Account</label>
-          {spotifyStatus?.connected ? (
-            <div className="flex items-center justify-between gap-3 bg-ctp-green/10 border border-ctp-green/30 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-ctp-green inline-block"></span>
-                <span className="text-sm text-ctp-green font-medium">Connected</span>
-              </div>
-              <button
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                className="text-xs text-ctp-subtext0 hover:text-ctp-red transition-colors disabled:opacity-50"
-              >
-                {disconnecting ? "Disconnecting…" : "Disconnect"}
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 bg-ctp-red/10 border border-ctp-red/30 rounded-lg px-4 py-3">
-                <span className="w-2 h-2 rounded-full bg-ctp-red inline-block"></span>
-                <span className="text-sm text-ctp-red font-medium">Not connected</span>
-              </div>
-              <a
-                href="/api/spotify/auth"
-                className="block w-full py-2.5 rounded-lg bg-ctp-green text-ctp-base text-sm font-bold text-center hover:bg-ctp-teal transition-colors"
-              >
-                Connect Spotify Account
-              </a>
-              <p className="text-xs text-ctp-overlay0">
-                Required for playlist sync. Make sure{" "}
-                <code className="text-ctp-yellow">http://127.0.0.1:6767/api/spotify/callback</code>{" "}
-                is listed as a Redirect URI in your{" "}
-                <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">Spotify app</a>.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-ctp-subtext0">Playlist URL</label>
-          <input
-            type="url"
-            value={form.playlist_url ?? ""}
-            onChange={(e) => set("playlist_url", e.target.value)}
-            placeholder="https://open.spotify.com/playlist/…"
-            className="w-full bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-blue transition-colors"
-          />
-          <p className="text-xs text-ctp-overlay0">Paste your playlist URL here.</p>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-ctp-subtext0">
-            Poll interval: <span className="text-ctp-text font-bold">{pollMinutes} min</span>
-          </label>
-          <input
-            type="range"
-            min={15}
-            max={1440}
-            step={15}
-            value={pollMinutes}
-            onChange={(e) => set("poll_interval_minutes", parseInt(e.target.value))}
-            className="w-full accent-ctp-blue"
-          />
-          <div className="flex justify-between text-xs text-ctp-overlay0">
-            <span>15 min</span>
-            <span>24 h</span>
-          </div>
-        </div>
-      </section>
-
-      {/* sp_dc web-player cookie */}
-      <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-sm font-semibold text-ctp-sapphire uppercase tracking-wide">Spotify Session Cookie (sp_dc)</h3>
-          {form.sp_dc ? (
-            <span className="flex items-center gap-1.5 text-xs text-ctp-green font-medium shrink-0">
-              <span className="w-2 h-2 rounded-full bg-ctp-green inline-block"></span> Configured
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-xs text-ctp-overlay0 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-ctp-overlay0 inline-block"></span> Not set
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-ctp-subtext0">
-          Spotify's November 2024 API change blocks the playlist tracks endpoint for apps in
-          Development Mode — even with OAuth connected. The <code className="text-ctp-sapphire">sp_dc</code>{" "}
-          cookie is your browser's Spotify session and uses a <strong>different, unrestricted</strong> token flow.
-          Set it once and automatic playlist sync will work without any Spotify app approval.
-        </p>
-        <ol className="text-xs text-ctp-subtext0 space-y-1 list-decimal list-inside">
-          <li>Open <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">open.spotify.com</a> and log in.</li>
-          <li>Open DevTools (<kbd className="text-ctp-text font-mono">F12</kbd>) → Application → Storage → Cookies → <code className="text-ctp-sapphire">https://open.spotify.com</code></li>
-          <li>Find the <code className="text-ctp-sapphire">sp_dc</code> cookie and copy its value.</li>
-          <li>Paste it below and click Save.</li>
-        </ol>
-        {spdcSaved && (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-ctp-green/10 border border-ctp-green/30 text-ctp-green text-sm">
-            <span>✓</span> sp_dc saved — syncing should now work!
-          </div>
-        )}
-        {spdcError && (
-          <div className="px-4 py-3 rounded-xl bg-ctp-red/10 border border-ctp-red/30 text-ctp-red text-sm">
-            {spdcError}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            type="password"
-            value={spdcInput}
-            onChange={(e) => setSpdcInput(e.target.value)}
-            placeholder={form.sp_dc ? "Paste new value to replace…" : "Paste sp_dc value…"}
-            className="flex-1 bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-sapphire transition-colors font-mono"
-          />
-          <button
-            onClick={handleSaveSpDc}
-            disabled={spdcSaving || !spdcInput.trim()}
-            className="px-4 py-2 rounded-lg bg-ctp-sapphire text-ctp-base text-sm font-bold hover:bg-ctp-blue disabled:opacity-40 transition-colors shrink-0"
-          >
-            {spdcSaving ? "Saving…" : "Save"}
-          </button>
-          {form.sp_dc && (
-            <button
-              onClick={handleClearSpDc}
-              disabled={spdcSaving}
-              className="px-4 py-2 rounded-lg bg-ctp-surface1 text-ctp-subtext0 text-sm hover:text-ctp-red hover:bg-ctp-red/10 disabled:opacity-40 transition-colors shrink-0"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        <p className="text-xs text-ctp-overlay0">
-          The cookie stays in your local database. It typically lasts months without needing to be refreshed.
-        </p>
-      </section>
 
       {/* Downloads */}
       <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
@@ -401,10 +186,7 @@ export default function SettingsPage() {
         <p className="text-xs text-ctp-subtext0">
           Export your Spotify playlist with{" "}
           <a href="https://exportify.net" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">Exportify</a>{" "}
-          and upload the CSV here to queue all tracks for download — useful if Spotify's API is
-          blocking direct sync due to{" "}
-          <a href="https://developer.spotify.com/documentation/web-api/concepts/quota-modes" target="_blank" rel="noopener noreferrer" className="text-ctp-blue underline">Extended Quota Mode</a>{" "}
-          restrictions.
+          and upload the CSV here to queue all tracks for download.
         </p>
         <p className="text-xs text-ctp-subtext0">
           Also accepts any CSV with <code className="text-ctp-yellow">Track Name</code> /{" "}

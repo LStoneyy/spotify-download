@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
 from ..database import Track, get_session
-from ..scheduler import get_current_state, poll_playlist
+from ..scheduler import get_current_state
 
 router = APIRouter()
 
@@ -33,10 +33,3 @@ def get_status(session: Session = Depends(get_session)):
         "total_skipped": total_skipped,
         "queue_length": queue_length,
     }
-
-
-@router.post("/sync")
-def trigger_sync():
-    """Run a playlist poll synchronously and return the result."""
-    result = poll_playlist()
-    return result

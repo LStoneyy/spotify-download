@@ -2,10 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import {
   getDownloads,
   getStatus,
-  triggerSync,
   type DownloadsResponse,
   type StatusResponse,
-  type SyncResult,
   type Track,
 } from "../api";
 import StatusBar from "../components/StatusBar";
@@ -62,8 +60,6 @@ export default function Dashboard() {
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterSource, setFilterSource] = useState<string>("");
   const [page, setPage] = useState(1);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
 
   const fetchAll = useCallback(async () => {
     const [s, d] = await Promise.all([
@@ -80,60 +76,11 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [fetchAll]);
 
-  const handleSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const result = await triggerSync();
-      setSyncResult(result);
-      // If new tracks were added, switch view to show them
-      if (result.ok && result.added && result.added > 0) {
-        setFilterSource("playlist");
-        setFilterStatus("queued");
-        setPage(1);
-      }
-      fetchAll();
-    } catch (e: unknown) {
-      setSyncResult({ ok: false, error: e instanceof Error ? e.message : "Sync failed" });
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const syncBannerColor = syncResult?.ok === false
-    ? "bg-ctp-red/10 border-ctp-red/30 text-ctp-red"
-    : "bg-ctp-green/10 border-ctp-green/30 text-ctp-green";
-
-  const syncBannerMsg = syncResult
-    ? syncResult.ok === false
-      ? `Sync failed: ${syncResult.error}`
-      : syncResult.added && syncResult.added > 0
-        ? `Sync complete — ${syncResult.added} new track${syncResult.added !== 1 ? "s" : ""} queued from ${syncResult.total_found} in playlist`
-        : `Already up to date — all ${syncResult.total_found} playlist tracks are in the library`
-    : null;
-
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-xl font-bold text-ctp-text">Dashboard</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="px-4 py-2 rounded-lg bg-ctp-blue text-ctp-base text-sm font-semibold hover:bg-ctp-sapphire disabled:opacity-50 transition-colors"
-          >
-            {syncing ? "Syncing…" : "🔄 Sync Now"}
-          </button>
-        </div>
       </div>
-
-      {/* Sync result banner */}
-      {syncBannerMsg && (
-        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm ${syncBannerColor}`}>
-          <span>{syncBannerMsg}</span>
-          <button onClick={() => setSyncResult(null)} className="text-inherit opacity-60 hover:opacity-100 text-xs">✕</button>
-        </div>
-      )}
 
       {/* Currently downloading */}
       <StatusBar status={status} />
@@ -148,13 +95,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Poll info */}
-      {status && (
-        <div className="flex flex-wrap gap-4 text-xs text-ctp-subtext0">
-          <span>Last sync: <span className="text-ctp-text">{fmtRelative(status.last_poll)}</span></span>
-          <span>Next sync: <span className="text-ctp-text">{fmtAbs(status.next_poll)}</span></span>
-        </div>
-      )}
+      {/* Poll info removed — no automatic polling */}
 
       {/* Filter bar */}
       <div className="space-y-2">

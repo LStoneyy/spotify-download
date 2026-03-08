@@ -40,8 +40,6 @@ export interface DownloadsResponse {
 
 export interface StatusResponse {
   currently_downloading: { track_id: number; title: string; artist: string | null } | null;
-  last_poll: string | null;
-  next_poll: string | null;
   total_done: number;
   total_failed: number;
   total_skipped: number;
@@ -50,26 +48,10 @@ export interface StatusResponse {
 
 export interface Settings {
   id: number;
-  playlist_url: string | null;
   quality: string;
-  poll_interval_minutes: number;
   file_template: string;
   sleep_between_downloads: number;
   max_retries: number;
-  /** Web-player session cookie; present means sp_dc is configured. */
-  sp_dc: string | null;
-}
-
-export interface SpotifyStatus {
-  connected: boolean;
-  expires_at: number | null;
-}
-
-export interface SyncResult {
-  ok?: boolean;
-  error?: string;
-  total_found?: number;
-  added?: number;
 }
 
 export interface ImportResult {
@@ -95,32 +77,18 @@ export const getDownloads = (params?: {
 
 export const getStatus = () => apiFetch<StatusResponse>("/status");
 
-export const triggerSync = () =>
-  apiFetch<SyncResult>("/sync", { method: "POST" });
-
 export const createRequest = (query: string) =>
   apiFetch<Track>("/requests", {
     method: "POST",
     body: JSON.stringify({ query }),
   });
 
-export const getSpotifyStatus = () => apiFetch<SpotifyStatus>("/spotify/status");
-export const disconnectSpotify = () =>
-  apiFetch<{ disconnected: boolean }>("/spotify/disconnect", { method: "DELETE" });
-
 export const getSettings = () => apiFetch<Settings>("/settings");
 
-export const updateSettings = (body: Partial<Omit<Settings, "id" | "sp_dc">>) =>
+export const updateSettings = (body: Partial<Omit<Settings, "id">>) =>
   apiFetch<Settings>("/settings", {
     method: "PUT",
     body: JSON.stringify(body),
-  });
-
-/** Save or clear the sp_dc cookie (empty string clears it). */
-export const saveSpDc = (sp_dc: string) =>
-  apiFetch<Settings>("/settings", {
-    method: "PUT",
-    body: JSON.stringify({ sp_dc }),
   });
 
 /** Upload a CSV file and queue its tracks for download. */
