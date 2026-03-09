@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { createRequest, getDownloads, type Track } from "../api";
+import { createRequest, getDownloads, uploadFile, type Track } from "../api";
+import UploadModal from "../components/UploadModal";
 
 const STATUS_COLORS: Record<Track["status"], string> = {
   done:        "bg-ctp-green/20 text-ctp-green border-ctp-green/30",
@@ -15,6 +16,7 @@ export default function Requests() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [manualTracks, setManualTracks] = useState<Track[]>([]);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const fetchManual = async () => {
     const data = await getDownloads({ source: "manual", limit: 50 }).catch(() => null);
@@ -47,6 +49,18 @@ export default function Requests() {
     }
   };
 
+  const handleUpload = async (file: File, title: string, artist: string, album: string) => {
+    setError("");
+    setSuccess("");
+    try {
+      const result = await uploadFile(file, title, artist, album);
+      setSuccess(`Uploaded: ${artist} – ${title}`);
+      fetchManual();
+    } catch (err: unknown) {
+      throw err;
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h2 className="text-xl font-bold text-ctp-text">Request a Song</h2>
@@ -75,6 +89,19 @@ export default function Requests() {
         </form>
         {error && <p className="mt-3 text-sm text-ctp-red">{error}</p>}
         {success && <p className="mt-3 text-sm text-ctp-green">✓ {success}</p>}
+      </div>
+
+      {/* Upload button */}
+      <div className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0">
+        <h3 className="text-sm font-semibold text-ctp-subtext0 uppercase tracking-wide mb-3">
+          Upload from computer
+        </h3>
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="w-full px-5 py-2.5 rounded-lg bg-ctp-blue text-ctp-base text-sm font-semibold hover:bg-ctp-sapphire transition-colors"
+        >
+          Upload Music File
+        </button>
       </div>
 
       {/* Manual request history */}
@@ -112,6 +139,12 @@ export default function Requests() {
           </div>
         )}
       </div>
+
+      <UploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onUpload={handleUpload}
+      />
     </div>
   );
 }

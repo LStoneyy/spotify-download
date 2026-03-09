@@ -145,3 +145,30 @@ export const getAuthStatus = () => apiFetch<AuthStatus>("/auth/status");
 export const login = () => { window.location.href = "/api/auth/login"; };
 
 export const logout = () => apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" });
+
+export interface UploadResult {
+  ok: boolean;
+  file_path: string;
+  message?: string;
+}
+
+export const uploadFile = async (
+  file: File,
+  title: string,
+  artist: string,
+  album?: string
+): Promise<UploadResult> => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("title", title);
+  form.append("artist", artist);
+  if (album) {
+    form.append("album", album);
+  }
+  const res = await fetch(`${BASE}/upload`, { method: "POST", body: form });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status} ${text}`);
+  }
+  return res.json() as Promise<UploadResult>;
+};
