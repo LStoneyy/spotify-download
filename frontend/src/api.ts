@@ -61,6 +61,29 @@ export interface ImportResult {
   skipped: number;
 }
 
+export interface MonitoredPlaylist {
+  id: number;
+  spotify_id: string;
+  name: string | null;
+  url: string;
+  track_count: number;
+  last_synced_at: string | null;
+  sync_error: string | null;
+  created_at: string;
+}
+
+export interface SyncResult {
+  playlist_id: number;
+  new_tracks: number;
+  total_tracks: number;
+  error: string | null;
+}
+
+export interface AuthStatus {
+  authenticated: boolean;
+  expires_at: number | null;
+}
+
 export const getDownloads = (params?: {
   page?: number;
   limit?: number;
@@ -102,3 +125,23 @@ export const importCsv = async (file: File): Promise<ImportResult> => {
   }
   return res.json() as Promise<ImportResult>;
 };
+
+export const getPlaylists = () => apiFetch<MonitoredPlaylist[]>("/playlists");
+
+export const addPlaylist = (url: string) =>
+  apiFetch<MonitoredPlaylist>("/playlists", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+
+export const deletePlaylist = (id: number) =>
+  apiFetch<{ ok: boolean }>("/playlists/" + id, { method: "DELETE" });
+
+export const syncPlaylist = (id: number) =>
+  apiFetch<SyncResult>("/playlists/" + id + "/sync", { method: "POST" });
+
+export const getAuthStatus = () => apiFetch<AuthStatus>("/auth/status");
+
+export const login = () => { window.location.href = "/api/auth/login"; };
+
+export const logout = () => apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" });

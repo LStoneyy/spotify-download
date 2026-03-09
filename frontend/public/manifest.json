@@ -1,0 +1,28 @@
+{
+  "name": "Spotify Downloader",
+  "short_name": "Spotify DL",
+  "description": "Download and monitor your Spotify playlists automatically",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1DB954",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["music"],
+  "prefer_related_applications": false
+}

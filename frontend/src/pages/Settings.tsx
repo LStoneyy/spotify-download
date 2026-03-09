@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { getSettings, updateSettings, importCsv, type Settings, type ImportResult } from "../api";
+import {
+  getSettings,
+  updateSettings,
+  importCsv,
+  getPlaylists,
+  addPlaylist,
+  deletePlaylist,
+  syncPlaylist,
+  getAuthStatus,
+  login,
+  logout,
+  type Settings,
+  type ImportResult,
+  type MonitoredPlaylist,
+  type AuthStatus,
+} from "../api";
 
 const QUALITIES = ["128", "192", "256", "320"];
 
@@ -23,12 +38,83 @@ export default function SettingsPage() {
   const [csvError, setCsvError] = useState("");
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  const [playlists, setPlaylists] = useState<MonitoredPlaylist[]>([]);
+  const [playlistLoading, setPlaylistLoading] = useState(true);
+  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [playlistAdding, setPlaylistAdding] = useState(false);
+  const [playlistError, setPlaylistError] = useState("");
+  const [playlistSuccess, setPlaylistSuccess] = useState("");
+  const [syncingId, setSyncingId] = useState<number | null>(null);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>({ authenticated: false, expires_at: null });
+
   useEffect(() => {
     getSettings()
       .then((s) => setForm(s))
       .catch(() => setError("Failed to load settings."))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    getAuthStatus()
+      .then(setAuthStatus)
+      .catch(() => setAuthStatus({ authenticated: false, expires_at: null }));
+  }, []);
+
+  useEffect(() => {
+    setPlaylistLoading(true);
+    getPlaylists()
+      .then(setPlaylists)
+      .catch(() => {})
+      .finally(() => setPlaylistLoading(false));
+  }, []);
+
+  const handleAddPlaylist = async () => {
+    if (!playlistUrl.trim()) return;
+    setPlaylistAdding(true);
+    setPlaylistError("");
+    setPlaylistSuccess("");
+    try {
+      const added = await addPlaylist(playlistUrl.trim());
+      setPlaylists((prev) => [added, ...prev]);
+      setPlaylistUrl("");
+      setPlaylistSuccess(`Added "${added.name || "Playlist"}"`);
+      setTimeout(() => setPlaylistSuccess(""), 3000);
+    } catch (err: unknown) {
+      setPlaylistError(err instanceof Error ? err.message : "Failed to add playlist.");
+    } finally {
+      setPlaylistAdding(false);
+    }
+  };
+
+  const handleDeletePlaylist = async (id: number) => {
+    try {
+      await deletePlaylist(id);
+      setPlaylists((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      setPlaylistError("Failed to delete playlist.");
+    }
+  };
+
+  const handleSyncPlaylist = async (id: number) => {
+    setSyncingId(id);
+    setPlaylistError("");
+    try {
+      const result = await syncPlaylist(id);
+      if (result.error) {
+        setPlaylistError(result.error);
+      } else {
+        setPlaylists((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, last_synced_at: new Date().toISOString() } : p))
+        );
+        setPlaylistSuccess(`Synced: ${result.new_tracks} new tracks`);
+        setTimeout(() => setPlaylistSuccess(""), 3000);
+      }
+    } catch (err: unknown) {
+      setPlaylistError(err instanceof Error ? err.message : "Sync failed.");
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -178,6 +264,138 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Spotify Authentication */}
+      <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
+        <h3 className="text-sm font-semibold text-ctp-green uppercase tracking-wide">Spotify Authentication</h3>
+        <p className="text-xs text-ctp-subtext0">
+          To monitor playlists, you need to authenticate with Spotify. This allows the app to read your playlists.
+        </p>
+        
+        {authStatus.authenticated ? (
+          <div className="flex items-center justify-between bg-ctp-surface0 rounded-lg px-4 py-3">
+            <div>
+              <p className="text-sm text-ctp-text font-medium">✓ Authenticated with Spotify</p>
+              {authStatus.expires_at && (
+                <p className="text-xs text-ctp-subtext0">
+                  Token expires: {new Date(authStatus.expires_at * 1000).toLocaleString()}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => logout().then(() => setAuthStatus({ authenticated: false, expires_at: null }))}
+              className="px-3 py-1 text-xs rounded-lg bg-ctp-red/20 text-ctp-red border border-ctp-red/30 hover:bg-ctp-red/30 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={login}
+            className="w-full py-2.5 rounded-lg bg-ctp-green/20 text-ctp-green border border-ctp-green/30 text-sm font-bold hover:bg-ctp-green/30 transition-colors"
+          >
+            Login with Spotify
+          </button>
+        )}
+      </section>
+
+      {/* Monitored Playlists */}
+      <section className="bg-ctp-mantle rounded-xl p-5 border border-ctp-surface0 space-y-4">
+        <h3 className="text-sm font-semibold text-ctp-teal uppercase tracking-wide">Monitored Playlists</h3>
+        <p className="text-xs text-ctp-subtext0">
+          Add a public Spotify playlist URL to automatically download new songs. 
+          Playlists are synced every hour.
+        </p>
+
+        {!authStatus.authenticated && (
+          <div className="px-4 py-3 rounded-xl bg-ctp-yellow/10 border border-ctp-yellow/30 text-ctp-yellow text-sm">
+            ⚠ Please authenticate with Spotify first to add playlists.
+          </div>
+        )}
+
+        {playlistError && (
+          <div className="px-4 py-3 rounded-xl bg-ctp-red/10 border border-ctp-red/30 text-ctp-red text-sm">
+            {playlistError}
+          </div>
+        )}
+        {playlistSuccess && (
+          <div className="px-4 py-3 rounded-xl bg-ctp-green/10 border border-ctp-green/30 text-ctp-green text-sm">
+            ✓ {playlistSuccess}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={playlistUrl}
+            onChange={(e) => setPlaylistUrl(e.target.value)}
+            placeholder="https://open.spotify.com/playlist/..."
+            className="flex-1 bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-3 py-2 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-teal transition-colors"
+            onKeyDown={(e) => e.key === "Enter" && handleAddPlaylist()}
+          />
+          <button
+            onClick={handleAddPlaylist}
+            disabled={playlistAdding || !playlistUrl.trim() || !authStatus.authenticated}
+            className="px-4 py-2 rounded-lg bg-ctp-teal/20 text-ctp-teal border border-ctp-teal/30 text-sm font-bold hover:bg-ctp-teal/30 disabled:opacity-50 transition-colors"
+          >
+            {playlistAdding ? "Adding…" : "Add"}
+          </button>
+        </div>
+
+        {playlistLoading ? (
+          <p className="text-xs text-ctp-subtext0">Loading playlists…</p>
+        ) : playlists.length === 0 ? (
+          <p className="text-xs text-ctp-overlay0">No playlists monitored yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {playlists.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between bg-ctp-surface0 rounded-lg px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-ctp-text font-medium truncate">
+                    {p.name || "Unknown Playlist"}
+                  </p>
+                  <p className="text-xs text-ctp-subtext0">
+                    {p.track_count} tracks
+                    {p.last_synced_at && (
+                      <span>
+                        {" "}
+                        · Last synced{" "}
+                        {new Date(p.last_synced_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                  </p>
+                  {p.sync_error && (
+                    <p className="text-xs text-ctp-red truncate">Error: {p.sync_error}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 ml-2">
+                  <button
+                    onClick={() => handleSyncPlaylist(p.id)}
+                    disabled={syncingId === p.id}
+                    className="px-3 py-1 text-xs rounded-lg bg-ctp-blue/20 text-ctp-blue border border-ctp-blue/30 hover:bg-ctp-blue/30 disabled:opacity-50 transition-colors"
+                  >
+                    {syncingId === p.id ? "Syncing…" : "Sync"}
+                  </button>
+                  <button
+                    onClick={() => handleDeletePlaylist(p.id)}
+                    className="px-3 py-1 text-xs rounded-lg bg-ctp-red/20 text-ctp-red border border-ctp-red/30 hover:bg-ctp-red/30 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* CSV Import */}

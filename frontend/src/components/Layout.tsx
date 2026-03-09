@@ -6,16 +6,27 @@ const navItems = [
   { to: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
+function Logo({ className = "" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="11" fill="#1a1a2e"/>
+      <path d="M12 4V14M12 14L8 10M12 14L16 10" stroke="#1DB954" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7 17C9 16 11 16 13 17C15 18 17 18 19 17" stroke="#1DB954" strokeWidth="2" strokeLinecap="round" opacity="0.9"/>
+      <path d="M5 20C8 18 11 18 13 20C15 22 18 21 21 19" stroke="#1DB954" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
+    </svg>
+  );
+}
+
 export default function Layout() {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-ctp-base text-ctp-text">
       {/* ── Desktop sidebar ───────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-56 min-h-screen bg-ctp-mantle border-r border-ctp-surface0 flex-shrink-0">
-        <div className="px-6 py-5 border-b border-ctp-surface0">
-          <h1 className="text-ctp-blue font-bold text-lg leading-tight">
-            🎧 Spotify<br />
-            <span className="text-ctp-text font-semibold text-base">Downloader</span>
-          </h1>
+        <div className="px-6 py-5 border-b border-ctp-surface0 flex items-center gap-3">
+          <Logo className="w-8 h-8" />
+          <div>
+            <h1 className="text-ctp-text font-bold text-base leading-tight">Spotify Downloader</h1>
+          </div>
         </div>
         <nav className="flex flex-col gap-1 p-3 flex-1">
           {navItems.map(({ to, label, icon }) => (

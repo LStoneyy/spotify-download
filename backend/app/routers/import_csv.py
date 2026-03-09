@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from sqlmodel import Session, or_, select, func
@@ -112,7 +111,7 @@ def _parse_csv(content: str) -> list[dict]:
 
 @router.post("/import/csv")
 async def import_csv(
-    file: Annotated[UploadFile, File(description="CSV playlist export (Exportify or similar)")],
+    file: UploadFile = File(description="CSV playlist export (Exportify or similar)"),
     session: Session = Depends(get_session),
 ):
     if not file.filename or not file.filename.lower().endswith(".csv"):

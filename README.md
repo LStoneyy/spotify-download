@@ -2,23 +2,22 @@
 
 A self-hosted Docker Compose service that downloads music as MP3s into your
 music directory. A React web UI at **http://localhost:6767** lets you request
-songs manually, import Spotify playlists via CSV, and configure all settings.
-
-> **Note:** Spotify's November 2024 API policy blocks direct playlist access
-> for Development Mode apps — even with a valid OAuth token — and their CDN
-> blocks the web-player token endpoint from server/Docker IPs. Direct Spotify
-> integration has been removed. Use CSV import (see below) to queue playlists.
+songs manually, import Spotify playlists via CSV, monitor playlists automatically,
+and configure all settings.
 
 ## Features
 
-- YouTube search with token-based scoring and smart fallbacks
-- Rate-limit–safe downloads: configurable sleep between tracks, exponential backoff on 429s
+- **YouTube search** with token-based scoring and smart fallbacks
+- **Rate-limit-safe downloads**: configurable sleep between tracks, exponential backoff on 429s
 - Uses the YouTube `tv` client (no PO Token required)
 - Optional `cookies.txt` support for improved resilience
 - ID3 tag writing (title, artist, album)
-- Responsive web UI — works great on mobile and desktop
-- Manual song request via the web UI
-- CSV playlist import (Exportify format or plain `Artist - Title` lists)
+- **Responsive web UI** — works great on mobile and desktop
+- **PWA support** — install as an app on your device
+- **Manual song request** via the web UI
+- **CSV playlist import** (Exportify format or plain `Artist - Title` lists)
+- **Automatic playlist monitoring** — syncs playlists hourly, downloads new tracks
+- **Spotify OAuth integration** — login to access your playlists
 - Configurable file naming templates with live preview
 - De-duplication by Spotify ID and by title + artist
 - All state persisted in SQLite (survives restarts)
@@ -26,6 +25,7 @@ songs manually, import Spotify playlists via CSV, and configure all settings.
 ## Requirements
 
 - Docker + Docker Compose
+- A Spotify Developer App (free) for playlist monitoring
 
 ## Setup
 
@@ -36,19 +36,42 @@ git clone https://github.com/LStoneyy/spotify-download.git
 cd spotify-download
 ```
 
-### 2. Configure environment
+### 2. Create a Spotify App
+
+1. Go to https://developer.spotify.com/dashboard
+2. Click **"Create App"**
+3. Fill in the name and description
+4. When asked "Which API/SDKs are you planning to use?", select **Web API**
+5. After creating, click on your app and go to **Settings**
+6. Copy the **Client ID** and **Client Secret**
+7. Under **Redirect URIs**, add:
+   ```
+   http://127.0.0.1:6767/api/auth/callback
+   ```
+8. Click **Save**
+
+### 3. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set your music folder:
+Edit `.env` with your settings:
 
 ```env
+# Spotify API credentials (from step 2)
+SPOTIFY_CLIENT_ID=your_client_id_here
+SPOTIFY_CLIENT_SECRET=your_client_secret_here
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:6767/api/auth/callback
+
+# Music output directory (absolute path on your host machine)
 MUSIC_DIR=/absolute/path/to/your/music/folder
+
+# Optional: YouTube cookies for better reliability
+# COOKIES_PATH=/absolute/path/to/cookies.txt
 ```
 
-### 3. Start
+### 4. Start
 
 ```bash
 docker compose up --build -d
@@ -56,18 +79,29 @@ docker compose up --build -d
 
 Open **http://localhost:6767** in your browser.
 
-### 4. Queue tracks
+## Usage
 
-**Option A — Manual request:** Go to **Requests**, type any song name or
-`Artist – Title` and hit Enter. It's queued immediately.
+### Manual Song Request
 
-**Option B — CSV import:** Export your Spotify playlist with
-[Exportify](https://exportify.net), then go to **Settings → Import Playlist CSV**
-and upload the file. All tracks are queued and deduplicated automatically.
+Go to **Requests**, type any song name or `Artist – Title` and hit Enter. It's queued immediately.
 
-Downloads start within 15 seconds and run one at a time in the background.
+### CSV Import
 
-## CSV import formats
+Export your Spotify playlist with [Exportify](https://exportify.net), then go to **Settings → Import Playlist CSV** and upload the file. All tracks are queued and deduplicated automatically.
+
+### Playlist Monitoring
+
+1. Go to **Settings → Spotify Authentication**
+2. Click **"Login with Spotify"**
+3. Authorize the app in Spotify
+4. You'll be redirected back to Settings
+5. Under **"Monitored Playlists"**, paste a Spotify playlist URL and click **"Add"**
+6. All tracks will be queued for download
+7. Playlists are synced hourly — new tracks are downloaded automatically
+
+You can also click **"Sync"** on any monitored playlist to force an immediate sync.
+
+## CSV Import Formats
 
 | Format | How to obtain |
 |--------|---------------|
@@ -83,9 +117,9 @@ Duplicate tracks (matched by Spotify ID or title + artist) are skipped automatic
 |------|-------------|
 | **Dashboard** | Live download history, queue stats, active download indicator, status filter |
 | **Requests** | Request any song by name or `Artist – Title` format |
-| **Settings** | Quality, sleep delay, file naming, CSV import, YouTube cookies hint |
+| **Settings** | Quality, sleep delay, file naming, CSV import, Spotify auth, playlist monitoring |
 
-## File naming templates
+## File Naming Templates
 
 | Template | Example output |
 |----------|---------------|
@@ -93,10 +127,9 @@ Duplicate tracks (matched by Spotify ID or title + artist) are skipped automatic
 | `{title}` | `Blinding Lights.mp3` |
 | `{album}/{artist} - {title}` | `After Hours/The Weeknd - Blinding Lights.mp3` |
 
-## Optional: YouTube cookies
+## Optional: YouTube Cookies
 
-Mount a `cookies.txt` (Netscape format) to improve download reliability on
-rate-limited IPs.
+Mount a `cookies.txt` (Netscape format) to improve download reliability on rate-limited IPs.
 
 How to export:
 1. Install the **Get cookies.txt LOCALLY** extension in Chrome/Firefox
@@ -108,19 +141,39 @@ How to export:
 COOKIES_PATH=/absolute/path/to/cookies.txt
 ```
 
-Or add it manually under `backend → volumes` in `docker-compose.yml`:
-
-```yaml
-- /path/to/cookies.txt:/data/cookies.txt
-```
-
-## Volume layout
+## Volume Layout
 
 | Container path | Description |
 |----------------|-------------|
 | `/music` | Your host music folder (`MUSIC_DIR`) |
 | `/data/db.sqlite` | SQLite database (named volume `app_data`) |
 | `/data/cookies.txt` | Optional YouTube cookies file |
+
+## PWA Installation
+
+The app works as a Progressive Web App (PWA). To install:
+
+**Desktop (Chrome/Edge):**
+1. Open http://localhost:6767
+2. Click the install icon in the address bar
+3. Click "Install"
+
+**Mobile (iOS):**
+1. Open http://localhost:6767 in Safari
+2. Tap the share button
+3. Tap "Add to Home Screen"
+
+**Mobile (Android):**
+1. Open http://localhost:6767 in Chrome
+2. Tap the menu (three dots)
+3. Tap "Add to Home Screen"
+
+## Tech Stack
+
+- **Backend**: Python, FastAPI, SQLModel, Spotipy, yt-dlp
+- **Frontend**: React, TypeScript, TailwindCSS, React Router
+- **Database**: SQLite
+- **Container**: Docker, Docker Compose
 
 ## Buy me a coffee
 
