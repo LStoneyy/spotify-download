@@ -55,8 +55,9 @@ export default function Layout() {
       {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-w-0 pb-16 lg:pb-0">
         {/* Mobile top header */}
-        <header className="lg:hidden flex items-center px-4 py-3 bg-ctp-mantle border-b border-ctp-surface0 sticky top-0 z-10">
-          <h1 className="text-ctp-blue font-bold text-base">🎧 Spotify Downloader</h1>
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-ctp-mantle border-b border-ctp-surface0 sticky top-0 z-10">
+          <Logo className="w-6 h-6" />
+          <h1 className="text-ctp-text font-bold text-base">Spotify Downloader</h1>
         </header>
 
         <main className="flex-1 p-4 md:p-6 overflow-auto">

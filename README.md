@@ -1,5 +1,9 @@
 # Spotify Playlist Downloader
 
+<p align="center">
+  <img src="frontend/public/logo.svg" alt="Spotify Downloader Logo" width="128" height="128">
+</p>
+
 A self-hosted Docker Compose service that downloads music as MP3s into your
 music directory. A React web UI at **http://localhost:6767** lets you request
 songs manually, import Spotify playlists via CSV, monitor playlists automatically,
