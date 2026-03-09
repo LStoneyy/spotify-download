@@ -22,6 +22,7 @@ and configure all settings.
 - **CSV playlist import** (Exportify format or plain `Artist - Title` lists)
 - **Automatic playlist monitoring** — syncs playlists hourly, downloads new tracks
 - **Spotify OAuth integration** — login to access your playlists
+- **Upload local music files** — drop any audio file (MP3, WAV, FLAC, M4A, OGG, WMA, AAC, OPUS) directly into your library; non-MP3 formats are automatically converted
 - Configurable file naming templates with live preview
 - De-duplication by Spotify ID and by title + artist
 - All state persisted in SQLite (survives restarts)
@@ -89,6 +90,18 @@ Open **http://localhost:6767** in your browser.
 
 Go to **Requests**, type any song name or `Artist – Title` and hit Enter. It's queued immediately.
 
+### Upload a Local File
+
+Already have the file on your computer? Go to **Requests → Upload from computer** and click **"Upload Music File"**. A modal opens where you:
+
+1. Pick an audio file from your computer (MP3, WAV, FLAC, M4A, OGG, WMA, AAC, OPUS, or WEBM)
+2. Enter the **Title** and **Artist** (required) and optionally the **Album**
+3. Click **Upload**
+
+The file is saved straight to your music directory. Non-MP3 formats are automatically converted to MP3 using FFmpeg at your configured quality setting. ID3 tags are written and the filename follows your file naming template — exactly the same as a regular download.
+
+> **Note:** If a file with the same name already exists in the music directory the upload is rejected with a conflict error.
+
 ### CSV Import
 
 Export your Spotify playlist with [Exportify](https://exportify.net), then go to **Settings → Import Playlist CSV** and upload the file. All tracks are queued and deduplicated automatically.
@@ -120,7 +133,7 @@ Duplicate tracks (matched by Spotify ID or title + artist) are skipped automatic
 | Page | Description |
 |------|-------------|
 | **Dashboard** | Live download history, queue stats, active download indicator, status filter |
-| **Requests** | Request any song by name or `Artist – Title` format |
+| **Requests** | Request any song by name or `Artist – Title` format; upload local audio files |
 | **Settings** | Quality, sleep delay, file naming, CSV import, Spotify auth, playlist monitoring |
 
 ## File Naming Templates
@@ -174,7 +187,7 @@ The app works as a Progressive Web App (PWA). To install:
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI, SQLModel, Spotipy, yt-dlp
+- **Backend**: Python, FastAPI, SQLModel, Spotipy, yt-dlp, FFmpeg
 - **Frontend**: React, TypeScript, TailwindCSS, React Router
 - **Database**: SQLite
 - **Container**: Docker, Docker Compose
