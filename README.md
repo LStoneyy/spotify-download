@@ -40,7 +40,7 @@ and configure all settings.
 ### 1. Clone
 
 ```bash
-git clone https://github.com/LStoneyy/spotify-download.git
+git clone https://github.com/LStoneyy/sonus.git
 cd spotify-download
 ```
 
