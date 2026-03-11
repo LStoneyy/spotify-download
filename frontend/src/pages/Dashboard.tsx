@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getDownloads,
   getStatus,
@@ -17,11 +18,12 @@ const STATUS_COLORS: Record<Track["status"], string> = {
 };
 
 function StatusBadge({ status }: { status: Track["status"] }) {
+  const { t } = useTranslation();
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[status]}`}
     >
-      {status}
+      {t(`statusLabels.${status}`)}
     </span>
   );
 }
@@ -35,13 +37,13 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   );
 }
 
-function fmtRelative(iso: string | null): string {
+function fmtRelative(iso: string | null, t: (key: string, options?: Record<string, unknown>) => string): string {
   if (!iso) return "–";
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (isNaN(diff)) return "–";
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 60) return t("timeAgo.secondsAgo", { count: diff });
+  if (diff < 3600) return t("timeAgo.minutesAgo", { count: Math.floor(diff / 60) });
+  return t("timeAgo.hoursAgo", { count: Math.floor(diff / 3600) });
 }
 
 function fmtAbs(iso: string | null): string {
@@ -55,6 +57,7 @@ function fmtAbs(iso: string | null): string {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [data, setData] = useState<DownloadsResponse | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -79,7 +82,7 @@ export default function Dashboard() {
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-bold text-ctp-text">Dashboard</h2>
+        <h2 className="text-xl font-bold text-ctp-text">{t("dashboard.title")}</h2>
       </div>
 
       {/* Currently downloading */}
@@ -88,23 +91,21 @@ export default function Dashboard() {
       {/* Stats */}
       {status && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard label="Downloaded" value={status.total_done} color="text-ctp-green" />
-          <StatCard label="Queued" value={status.queue_length} color="text-ctp-yellow" />
-          <StatCard label="Failed" value={status.total_failed} color="text-ctp-red" />
-          <StatCard label="Skipped" value={status.total_skipped} color="text-ctp-subtext0" />
+          <StatCard label={t("dashboard.downloaded")} value={status.total_done} color="text-ctp-green" />
+          <StatCard label={t("dashboard.queued")} value={status.queue_length} color="text-ctp-yellow" />
+          <StatCard label={t("dashboard.failed")} value={status.total_failed} color="text-ctp-red" />
+          <StatCard label={t("dashboard.skipped")} value={status.total_skipped} color="text-ctp-subtext0" />
         </div>
       )}
-
-      {/* Poll info removed — no automatic polling */}
 
       {/* Filter bar */}
       <div className="space-y-2">
         <div className="flex gap-2 flex-wrap">
-          {["All", "playlist", "manual"].map((s) => {
-            const val = s === "All" ? "" : s;
+          {[t("common.all"), t("common.playlist"), t("common.manual")].map((label, i) => {
+            const val = i === 0 ? "" : i === 1 ? "playlist" : "manual";
             return (
               <button
-                key={s}
+                key={label}
                 onClick={() => { setFilterSource(val); setPage(1); }}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                   filterSource === val
@@ -112,7 +113,7 @@ export default function Dashboard() {
                     : "border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-overlay0"
                 }`}
               >
-                {s}
+                {label}
               </button>
             );
           })}
@@ -128,7 +129,7 @@ export default function Dashboard() {
                   : "border-ctp-surface1 text-ctp-subtext0 hover:border-ctp-overlay0"
               }`}
             >
-              {s === "" ? "All statuses" : s}
+              {s === "" ? t("dashboard.allStatuses") : t(`statusLabels.${s}`)}
             </button>
           ))}
         </div>
@@ -139,39 +140,39 @@ export default function Dashboard() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-ctp-surface0 text-left text-xs text-ctp-subtext0 uppercase tracking-wide">
-              <th className="px-4 py-3 font-medium">Track</th>
-              <th className="px-4 py-3 font-medium">Source</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Time</th>
+              <th className="px-4 py-3 font-medium">{t("dashboard.track")}</th>
+              <th className="px-4 py-3 font-medium">{t("dashboard.source")}</th>
+              <th className="px-4 py-3 font-medium">{t("dashboard.status")}</th>
+              <th className="px-4 py-3 font-medium">{t("dashboard.time")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ctp-surface0">
             {data?.items.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-ctp-subtext0">
-                  No tracks yet.
+                  {t("dashboard.noTracks")}
                 </td>
               </tr>
             )}
-            {data?.items.map((t) => (
-              <tr key={t.id} className="hover:bg-ctp-surface0/40 transition-colors">
+            {data?.items.map((track) => (
+              <tr key={track.id} className="hover:bg-ctp-surface0/40 transition-colors">
                 <td className="px-4 py-3 max-w-xs">
-                  <p className="font-medium truncate">{t.title}</p>
-                  {t.artist && (
-                    <p className="text-xs text-ctp-subtext0 truncate">{t.artist}</p>
+                  <p className="font-medium truncate">{track.title}</p>
+                  {track.artist && (
+                    <p className="text-xs text-ctp-subtext0 truncate">{track.artist}</p>
                   )}
-                  {t.error_msg && (
-                    <p className="text-xs text-ctp-red mt-0.5 truncate">{t.error_msg}</p>
+                  {track.error_msg && (
+                    <p className="text-xs text-ctp-red mt-0.5 truncate">{track.error_msg}</p>
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-xs text-ctp-subtext0">{t.source}</span>
+                  <span className="text-xs text-ctp-subtext0">{track.source}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={t.status} />
+                  <StatusBadge status={track.status} />
                 </td>
                 <td className="px-4 py-3 text-xs text-ctp-subtext0 whitespace-nowrap">
-                  {fmtRelative(t.downloaded_at || t.requested_at)}
+                  {fmtRelative(track.downloaded_at || track.requested_at, t)}
                 </td>
               </tr>
             ))}
@@ -182,26 +183,26 @@ export default function Dashboard() {
       {/* ── Mobile card list ───────────────────────────────────────────── */}
       <div className="md:hidden space-y-2">
         {data?.items.length === 0 && (
-          <div className="text-center text-ctp-subtext0 py-10">No tracks yet.</div>
+          <div className="text-center text-ctp-subtext0 py-10">{t("dashboard.noTracks")}</div>
         )}
-        {data?.items.map((t) => (
-          <div key={t.id} className="bg-ctp-mantle rounded-xl p-4 border border-ctp-surface0">
+        {data?.items.map((track) => (
+          <div key={track.id} className="bg-ctp-mantle rounded-xl p-4 border border-ctp-surface0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold truncate text-sm">{t.title}</p>
-                {t.artist && (
-                  <p className="text-xs text-ctp-subtext0 truncate">{t.artist}</p>
+                <p className="font-semibold truncate text-sm">{track.title}</p>
+                {track.artist && (
+                  <p className="text-xs text-ctp-subtext0 truncate">{track.artist}</p>
                 )}
-                {t.error_msg && (
-                  <p className="text-xs text-ctp-red mt-0.5 line-clamp-2">{t.error_msg}</p>
+                {track.error_msg && (
+                  <p className="text-xs text-ctp-red mt-0.5 line-clamp-2">{track.error_msg}</p>
                 )}
               </div>
-              <StatusBadge status={t.status} />
+              <StatusBadge status={track.status} />
             </div>
             <div className="flex items-center gap-3 mt-2 text-xs text-ctp-overlay0">
-              <span>{t.source}</span>
+              <span>{track.source}</span>
               <span>·</span>
-              <span>{fmtRelative(t.downloaded_at || t.requested_at)}</span>
+              <span>{fmtRelative(track.downloaded_at || track.requested_at, t)}</span>
             </div>
           </div>
         ))}
@@ -215,17 +216,17 @@ export default function Dashboard() {
             disabled={page === 1}
             className="px-3 py-1.5 rounded-lg bg-ctp-surface0 text-ctp-text disabled:opacity-40 hover:bg-ctp-surface1 transition-colors"
           >
-            ← Prev
+            ← {t("dashboard.prev")}
           </button>
           <span className="text-ctp-subtext0 text-xs">
-            Page {page} · {data.total} total
+            {t("dashboard.page")} {page} · {data.total} {t("dashboard.total")}
           </span>
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page * data.limit >= data.total}
             className="px-3 py-1.5 rounded-lg bg-ctp-surface0 text-ctp-text disabled:opacity-40 hover:bg-ctp-surface1 transition-colors"
           >
-            Next →
+            {t("dashboard.next")} →
           </button>
         </div>
       )}

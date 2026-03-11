@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="Spotify Downloader", lifespan=lifespan)
+app = FastAPI(title="Sonus", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

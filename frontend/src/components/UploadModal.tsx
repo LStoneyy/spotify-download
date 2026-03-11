@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ const ACCEPTED_AUDIO_TYPES = [
 ];
 
 export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalProps) {
+  const { t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
@@ -40,7 +42,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
     if (!selectedFile) return;
 
     if (!ACCEPTED_AUDIO_TYPES.includes(selectedFile.type) && !selectedFile.name.match(/\.(mp3|wav|flac|m4a|ogg|wma|aac|opus|webm)$/i)) {
-      setError("Please select a valid audio file (MP3, WAV, FLAC, M4A, OGG, WMA, AAC, OPUS)");
+      setError(t("upload.uploadError"));
       return;
     }
 
@@ -53,7 +55,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !title.trim() || !artist.trim()) {
-      setError("Please select a file and fill in title and artist");
+      setError(t("upload.uploadError"));
       return;
     }
 
@@ -64,7 +66,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
       await onUpload(file, title.trim(), artist.trim(), album.trim());
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : t("upload.uploadError"));
     } finally {
       setUploading(false);
     }
@@ -85,7 +87,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-ctp-mantle rounded-xl border border-ctp-surface0 w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-ctp-surface0">
-          <h3 className="text-lg font-bold text-ctp-text">Upload Music File</h3>
+          <h3 className="text-lg font-bold text-ctp-text">{t("upload.title")}</h3>
           <button
             onClick={handleClose}
             className="text-ctp-subtext0 hover:text-ctp-text text-xl leading-none"
@@ -97,7 +99,7 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-ctp-text mb-2">
-              Audio File
+              {t("upload.selectFile")}
             </label>
             <input
               ref={fileInputRef}
@@ -108,20 +110,23 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
             />
             {file && (
               <p className="mt-2 text-xs text-ctp-subtext0">
-                Selected: {file.name}
+                {file.name}
               </p>
             )}
+            <p className="mt-1 text-xs text-ctp-overlay0">
+              {t("upload.supportedFormats")}
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-ctp-text mb-2">
-              Title <span className="text-ctp-red">*</span>
+              {t("upload.titleLabel")} <span className="text-ctp-red">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Song title"
+              placeholder={t("upload.titlePlaceholder")}
               className="w-full bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-4 py-2.5 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-blue transition-colors"
               required
             />
@@ -129,13 +134,13 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
 
           <div>
             <label className="block text-sm font-medium text-ctp-text mb-2">
-              Artist <span className="text-ctp-red">*</span>
+              {t("upload.artistLabel")} <span className="text-ctp-red">*</span>
             </label>
             <input
               type="text"
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
-              placeholder="Artist name"
+              placeholder={t("upload.artistPlaceholder")}
               className="w-full bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-4 py-2.5 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-blue transition-colors"
               required
             />
@@ -143,13 +148,13 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
 
           <div>
             <label className="block text-sm font-medium text-ctp-text mb-2">
-              Album
+              {t("upload.albumLabel")}
             </label>
             <input
               type="text"
               value={album}
               onChange={(e) => setAlbum(e.target.value)}
-              placeholder="Album name (optional)"
+              placeholder={t("upload.albumPlaceholder")}
               className="w-full bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-4 py-2.5 text-sm text-ctp-text placeholder-ctp-overlay0 focus:outline-none focus:border-ctp-blue transition-colors"
             />
           </div>
@@ -166,14 +171,14 @@ export default function UploadModal({ isOpen, onClose, onUpload }: UploadModalPr
               onClick={handleClose}
               className="flex-1 px-4 py-2.5 rounded-lg bg-ctp-surface0 text-ctp-text text-sm font-medium hover:bg-ctp-surface1 transition-colors"
             >
-              Cancel
+              {t("upload.cancel")}
             </button>
             <button
               type="submit"
               disabled={uploading || !file || !title.trim() || !artist.trim()}
               className="flex-1 px-4 py-2.5 rounded-lg bg-ctp-green text-ctp-base text-sm font-semibold hover:bg-ctp-teal disabled:opacity-50 transition-colors"
             >
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? t("upload.uploading") : t("upload.upload")}
             </button>
           </div>
         </form>

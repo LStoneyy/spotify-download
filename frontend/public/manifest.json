@@ -1,28 +1,22 @@
 {
-  "name": "Spotify Downloader",
-  "short_name": "Spotify DL",
-  "description": "Download and monitor your Spotify playlists automatically",
+  "name": "Sonus",
+  "short_name": "Sonus",
+  "description": "Self-Hosted Universal Music Hub",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1DB954",
+  "background_color": "#1e1e2e",
+  "theme_color": "#1a1a2e",
   "icons": [
     {
-      "src": "/logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    },
-    {
       "src": "/favicon.svg",
-      "sizes": "32x32",
-      "type": "image/svg+xml"
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
       "src": "/apple-touch-icon.svg",
-      "sizes": "180x180",
+      "sizes": "512x512",
       "type": "image/svg+xml"
     }
-  ],
-  "categories": ["music"],
-  "prefer_related_applications": false
+  ]
 }

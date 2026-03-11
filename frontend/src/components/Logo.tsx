@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" fill="#1DB954"/>
-  <path d="M16.5 12C16.5 14.21 14.49 16 12.5 16C10.51 16 9 14.21 9 12.5C9 10.79 10.51 9 12.5 9C14.49 9 16.5 10.79 16.5 12Z" fill="#191414"/>
-  <path d="M8 7V17" stroke="#1DB954" stroke-width="2" stroke-linecap="round"/>
-  <path d="M12 5V19" stroke="#1DB954" stroke-width="2" stroke-linecap="round"/>
-  <path d="M16 7V17" stroke="#1DB954" stroke-width="2" stroke-linecap="round"/>
-</svg>
+interface LogoProps {
+  className?: string;
+}
+
+export default function Logo({ className = "" }: LogoProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="11" fill="#1a1a2e"/>
+      <path d="M12 4V14M12 14L8 10M12 14L16 10" stroke="#1DB954" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7 17C9 16 11 16 13 17C15 18 17 18 19 17" stroke="#1DB954" strokeWidth="2" strokeLinecap="round" opacity="0.9"/>
+      <path d="M5 20C8 18 11 18 13 20C15 22 18 21 21 19" stroke="#1DB954" strokeWidth="2" strokeLinecap="round" opacity="0.6"/>
+    </svg>
+  );
+}

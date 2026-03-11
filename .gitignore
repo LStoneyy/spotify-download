@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+node_modules/
+pip-log.txt
+pip-delete-this-directory
 
 # C extensions
 *.so

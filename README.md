@@ -1,13 +1,15 @@
-# Spotify Playlist Downloader
+# Sonus
 
 <p align="center">
-  <img src="frontend/public/logo.svg" alt="Spotify Downloader Logo" width="128" height="128">
+  <img src="frontend/public/logo.svg" alt="Sonus Logo" width="128" height="128">
 </p>
 
-A self-hosted Docker Compose service that downloads music as MP3s into your
+**Sonus** is a self-hosted universal music hub that downloads music as MP3s into your
 music directory. A React web UI at **http://localhost:6767** lets you request
 songs manually, import Spotify playlists via CSV, monitor playlists automatically,
 and configure all settings.
+
+> **Note:** This project was formerly known as "Spotify Playlist Downloader" and has been rebranded to **Sonus** as part of a larger evolution into a universal music management platform.
 
 ## Features
 
@@ -18,6 +20,7 @@ and configure all settings.
 - ID3 tag writing (title, artist, album)
 - **Responsive web UI** — works great on mobile and desktop
 - **PWA support** — install as an app on your device
+- **Multilingual support** — English and German translations built-in; easily extensible to more languages
 - **Manual song request** via the web UI
 - **CSV playlist import** (Exportify format or plain `Artist - Title` lists)
 - **Automatic playlist monitoring** — syncs playlists hourly, downloads new tracks
@@ -188,7 +191,7 @@ The app works as a Progressive Web App (PWA). To install:
 ## Tech Stack
 
 - **Backend**: Python, FastAPI, SQLModel, Spotipy, yt-dlp, FFmpeg
-- **Frontend**: React, TypeScript, TailwindCSS, React Router
+- **Frontend**: React, TypeScript, TailwindCSS, React Router, i18next
 - **Database**: SQLite
 - **Container**: Docker, Docker Compose
 

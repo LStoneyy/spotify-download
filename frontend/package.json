@@ -1,5 +1,5 @@
 {
-  "name": "spotify-download-ui",
+  "name": "sonus-ui",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,8 +8,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "i18next": "^25.8.18",
+    "i18next-browser-languagedetector": "^8.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^16.5.8",
     "react-router-dom": "^6.28.1"
   },
   "devDependencies": {
